@@ -1,0 +1,154 @@
+Names:	Courtney Gardner -- cng3@rice.edu
+		Aaron Shaw -- aws6@rice.edu
+
+COMP 321 Project 5: Malloc Dynamic Memory Allocator
+Date: 3/31/19 (One Slip Day Used)
+
+DESCRIPTION
+
+We have implemented a dynamic memory allocator that allows us to manage
+memory needed to run C programs in real time. A user can make calls to the
+functions implemented in our mm.c program throughout their code, allowing
+for additional virtual memory to be set aside for their data structures at
+run time. When our allocator is initialized, it begins by setting aside a 
+small area of memory on the system, thereby initializing the memory heap. 
+Then, as the user creates various data structures in their program, they 
+will either make calls to use more memory, resize the amount of memory that 
+an object uses, or stop using a given bit of memory. Whenever a call to one
+of these functions is made, the user will receive a pointer to the location
+of that object in the memory heap, allowing them to point to that object
+as they need to. Thus, as the user makes various calls to the mm_malloc, 
+mm_realloc, and mm_free functions that we've implemented, they will be able 
+to ensure that they have the appropriate amount of memory to store and keep 
+track of their data regardless of how much memory they require at compile 
+time.
+
+
+DESIGN
+
+We chose to implement our allocator as an explicit free list. Implementing our
+allocator in this manner allowed us to locate an appropriately sized block of
+available memory much faster than we would have been able to by using an
+implicit implementation. We know this because the explicit list only has to
+look through free blocks and find one that is large enough whereas the implicit
+implementation has to look through every block in memory, determine if it is
+free, and determine if it is large enough. 
+
+By utilizing an explicit free list, we needed to make sure that we called our
+coalesce method every time that we called our mm_free function. Since our
+search consisted of looking through all free blocks, we wanted to ensure that
+we kept our list of free blocks updated with the correct sizes so that our 
+search is looked through all of the free blocks as opposed to just the 
+blocks that were marked free before we invoked the mm_free call. 
+
+In terms of how we designed our blocks of memory, we chose to create blocks
+with a header and an identical footer. The reasoning behind utilizing both
+a header and a footer was that doing so would allow us to more easily split
+up blocks when we wanted to allocate a certain amount of memory to a free
+block that was larger than necessary. Our header and footer stored information
+about the size of the block of memory as well as whether or not that block
+was allocated. Additionally, we chose to store pointers to the previous free
+block and the next free block of memory, bring us to one of the more important
+design choices that we made.
+
+Essentially, we implemented our list of free blocks as a circular doubly-
+linked list. In order to implement this doubly-linked list, we
+created a struct, free_blk, that kept track of the previous free block and
+of the next free block, and each of our blocks of memory were essentially
+pointers to these structs which held pointers to the next and previous 
+blocks. Every time we invoked a method that somehow added to or reorganized 
+our free blocks, we utilized a helper function that we created which 
+essentially added a free block to our linked list by updating the pointers
+of the existing head of the list. Similarly, if we allocated memory, we 
+removed a given block from the free list by updating its pointers with 
+another helper method.
+
+Keeping track of our free blocks with a doubly-linked list was a design
+choice that had a very large impact on our find_fit function. We chose to
+look for the first free block that was large enough to hold the information
+that needed to be stored as opposed to looking for the most appropriately
+sized free block of memory. While looking for the closet sized free block
+would help with utilization and limit the amount of fragmentation in our
+heap, we chose to go with the first match we found because it provided a
+much faster implementation overall. As such, in order to find the first
+appropriately sized block, our doubly-linked list allowed us to start at the
+head of our free list and then iterate through all pointers to the next free
+blocks until an appropriately sized block had been located. Notably, since
+we used a circular doubly-linked list, we were able to break free of this
+for-loop if our next block was the same as our current block because it
+indicated that we had iterated through all of our free blocks and were 
+unable to find any existing blocks of appropriate size.
+
+
+
+TESTING STRATEGY
+
+For this project, we are evaluated on our performance of the provided trace
+ files. No other trace files are used in calculating our score; thus, our
+ testing strategy revolved around this notion.
+
+We split testing into two phases. 
+Phase 1: testing with checkheap
+
+While we were writing code, we tested with the checkheap to ensure our 
+explicit free list was following the the required guidelines. In checkheap we
+ answered the following questions:
+ 	1.Is every block in the free list marked as free?
+	2.Are there any contiguous free blocks that escaped coalescing?
+	3.Is every free block actually free?
+	4.Is every free block actually in the free list?
+	5.Are pointers to blocks in the free list valid?
+	6.Does removing a free block actually remove it from the free list?
+
+Each one of these questions had a dedicated section of code within checkheap 
+to test for its cases. These code sections were either helper functions or
+ code snippet depending on how many lines were required to achieve the 
+functionality.
+
+These tests are sufficient to ensure that our mm.c program works correctly
+ because we check every case involving free lists and moving blocks in/out of
+ the free list.
+
+Questions 1 examines adding blocks to the free list (add_free() was the name
+ of our function dedicated to adding a free block to the free block list). It
+ checks to ensure the new free block is added in the proper location of our 
+free list.
+
+Question 2 examines our ability to ensure all free blocks of memory are stored
+ in the free list. It ensures that the combined functionality of add_free(),
+ coalesce(), and free() is correct.
+
+Question 3 examines whether we properly freed a block of memory stored in the
+ free list. This ensures that we properly free memory.
+
+Question 4 examines our ability to coalesce. It ensures that no extra free 
+blocks exist and that the functionality of our coalesce and add to free list 
+are correct. 
+
+Question 5 examines whether the structure we created to point to free memory 
+blocks is correct. It ensures that all memory blocks are valid, allowing us to
+ know that our free memory block pointers are correctly made, freed, and added.
+
+Question 6 examines our ability to remove elements from the free list. This 
+also ensures that we properly reallocate if a reallocation of memory is 
+requested.
+
+Every time a major change in our code was made, we called checkheap to ensure
+ that we preserved the functionality of our previous code. If the result from 
+one of these checks was incorrect, we printed a standard error message 
+informing us of which check failed.
+
+Phase 2: testing the trace files
+The second half of our testing occurred once we had successfully completed the
+ project. The goal of this testing was to ensure the efficiency of our code 
+and to optimize further. We ran all of the trace files individually to examine
+ our throughout and utiliy. When we discovered a file with significantly 
+different scores  from other traces (ie throughput of 10+ lower than all other
+ cases), then we would examine that trace more closely. In a few cases this 
+lead to hard coding specific block allocation sizes. This ensured that all 
+traces were sufficiently fast—our overall score when testing was 94/100, with
+ a 60/60 on throughput.
+
+After we ensured all traces files were running smoothly, we ran every single 
+combination of trace file orderings. This ensures that regardless of the order
+ of testing, program will always give the same result.
